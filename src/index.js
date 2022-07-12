@@ -84,6 +84,7 @@ export default function supernova(env) {
             rect,
             footerContainer,
             announce,
+            model,
           });
         }
       }, [
@@ -97,6 +98,7 @@ export default function supernova(env) {
         rect.width,
         announce,
         changeSortOrder,
+        model,
       ]);
 
       // this is the one we want to use for carbon

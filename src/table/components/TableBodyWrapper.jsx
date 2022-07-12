@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, memo } from 'react';
 import PropTypes from 'prop-types';
+
 import getCellRenderer from '../utils/get-cell-renderer';
 import { useContextSelector, TableContext } from '../context';
 import { StyledTableBody, StyledBodyRow } from '../styles';
@@ -20,8 +21,13 @@ function TableBodyWrapper({
   tableWrapperRef,
   announce,
   children,
+  virtualizer,
+  data,
 }) {
   const { rows, columns, paginationNeeded, totalsPosition } = tableData;
+
+  const items = virtualizer.getVirtualItems();
+
   const columnsStylingInfoJSON = JSON.stringify(columns.map((column) => column.stylingInfo));
   const setFocusedCellCoord = useContextSelector(TableContext, (value) => value.setFocusedCellCoord);
   const selectionDispatch = useContextSelector(TableContext, (value) => value.selectionDispatch);
@@ -44,16 +50,24 @@ function TableBodyWrapper({
     addSelectionListeners({ api: selectionsAPI, selectionDispatch, setShouldRefocus, keyboard, tableWrapperRef });
   }, []);
 
-  return (
-    <StyledTableBody paginationNeeded={paginationNeeded} bodyCellStyle={bodyCellStyle}>
-      {totalsPosition === 'top' ? children : undefined}
-      {rows.map((row) => (
+  const renderItem = (item) => {
+    const row = data[item.index];
+    if (row) {
+      return (
         <StyledBodyRow
           bodyCellStyle={bodyCellStyle}
           hover={hoverEffect}
           tabIndex={-1}
           key={row.key}
           className="sn-table-row"
+          sx={{
+            '& td': {
+              height: '32px',
+              boxSizing: 'border-box',
+              minHeight: '32px',
+              maxHeight: '32px',
+            },
+          }}
         >
           {columns.map((column, columnIndex) => {
             const { id, align } = column;
@@ -99,7 +113,19 @@ function TableBodyWrapper({
             );
           })}
         </StyledBodyRow>
-      ))}
+      );
+    }
+    return (
+      <tr key={item.key}>
+        <td style={{ height: '32px', boxSizing: 'border-box' }} />
+      </tr>
+    );
+  };
+
+  return (
+    <StyledTableBody paginationNeeded={paginationNeeded} bodyCellStyle={bodyCellStyle}>
+      {totalsPosition === 'top' ? children : undefined}
+      {items.map(renderItem)}
       {totalsPosition === 'bottom' ? children : undefined}
     </StyledTableBody>
   );
@@ -117,6 +143,8 @@ TableBodyWrapper.propTypes = {
   tableWrapperRef: PropTypes.object.isRequired,
   announce: PropTypes.func.isRequired,
   children: PropTypes.object.isRequired,
+  virtualizer: PropTypes.object.isRequired,
+  data: PropTypes.object.isRequired,
 };
 
 export default memo(TableBodyWrapper);

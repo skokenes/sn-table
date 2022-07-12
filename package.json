@@ -124,5 +124,8 @@
   },
   "resolutions": {
     "@mui/styled-engine": "npm:@mui/styled-engine-sc@latest"
+  },
+  "dependencies": {
+    "@tanstack/react-virtual": "^3.0.0-beta.2"
   }
 }

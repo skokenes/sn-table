@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Table from '@mui/material/Table';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 import AnnounceElements from './AnnounceElements';
 import TableBodyWrapper from './TableBodyWrapper';
@@ -32,8 +33,10 @@ export default function TableWrapper(props) {
     direction,
     footerContainer,
     announce,
+    model,
   } = props;
   const { totalColumnCount, totalRowCount, totalPages, paginationNeeded, rows, columns } = tableData;
+
   const { page, rowsPerPage } = pageInfo;
   const isSelectionMode = selectionsAPI.isModal();
   const focusedCellCoord = useContextSelector(TableContext, (value) => value.focusedCellCoord);
@@ -105,6 +108,67 @@ export default function TableWrapper(props) {
     columns.length,
   ])} ${translator.get('SNTable.Accessibility.NavigationInstructions')}`;
 
+  const [fetchingRange, setFetchingRange] = useState([0, 100]);
+
+  const [data, setData] = useState(new Array(totalRowCount));
+
+  const OVERSCAN = 5;
+  const virtualizer = useVirtualizer({
+    count: totalRowCount,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 32,
+    overscan: OVERSCAN,
+    onChange: (v) => {
+      const { startIndex, endIndex } = v.calculateRange();
+      const doWeHaveData = !!data[startIndex] && !!data[endIndex];
+      const areWeFetchingData = fetchingRange[0] <= startIndex && fetchingRange[1] >= endIndex;
+
+      if (!doWeHaveData && !areWeFetchingData) {
+        setFetchingRange([Math.max(startIndex - OVERSCAN, 0), endIndex + OVERSCAN]);
+      }
+    },
+  });
+
+  useEffect(() => {
+    const start = fetchingRange[0];
+    const end = fetchingRange[1];
+    const height = end - start;
+
+    model
+      .getHyperCubeData('/qHyperCubeDef', [{ qTop: start, qLeft: 0, qHeight: height, qWidth: totalColumnCount }])
+      .then((dataPages) => {
+        const newRows = dataPages[0].qMatrix.map((r, rowIdx) => {
+          const fullRowIdx = rowIdx + start;
+          const row = { key: `row-${fullRowIdx}`, fullRowIdx };
+          columns.forEach((c, colIdx) => {
+            row[c.id] = {
+              ...r[colIdx],
+              rowIdx: fullRowIdx,
+              colIdx, // columnOrder[colIdx],
+              isSelectable: c.isDim && !c.isLocked,
+              rawRowIdx: rowIdx,
+              rawColIdx: colIdx,
+              prevQElemNumber: dataPages[0].qMatrix[rowIdx - 1]?.[colIdx]?.qElemNumber,
+              nextQElemNumber: dataPages[0].qMatrix[rowIdx + 1]?.[colIdx]?.qElemNumber,
+            };
+          });
+          return row;
+        });
+
+        setData((oldData) => {
+          const dataCache = [...oldData];
+          newRows.forEach((r) => {
+            if (!dataCache[r.fullRowIdx]) dataCache[r.fullRowIdx] = r;
+          });
+          return dataCache;
+        });
+      });
+  }, [fetchingRange, totalColumnCount, columns, model]);
+
+  const virtualItems = virtualizer.getVirtualItems();
+  const paddingTop = virtualItems[0].start ?? 0;
+  const paddingBottom = virtualizer.getTotalSize() - virtualItems.at(-1).end;
+
   return (
     <StyledTableWrapper
       ref={tableWrapperRef}
@@ -122,9 +186,34 @@ export default function TableWrapper(props) {
         role="application"
         data-testid="table-container"
       >
-        <Table stickyHeader aria-label={tableAriaLabel}>
+        <Table
+          stickyHeader
+          aria-label={tableAriaLabel}
+          style={{
+            '--virtualPaddingTop': `${paddingTop}px`,
+            '--virtualPaddingBottom': `${paddingBottom}px`,
+          }}
+          sx={{
+            '& tbody::before': {
+              display: 'block',
+              content: '""',
+              paddingTop: 'var(--virtualPaddingTop)',
+            },
+            '& tbody::after': {
+              display: 'block',
+              content: '""',
+              paddingBottom: 'var(--virtualPaddingBottom)',
+            },
+          }}
+        >
           <TableHeadWrapper {...props} />
-          <TableBodyWrapper {...props} setShouldRefocus={setShouldRefocus} tableWrapperRef={tableWrapperRef}>
+          <TableBodyWrapper
+            {...props}
+            setShouldRefocus={setShouldRefocus}
+            tableWrapperRef={tableWrapperRef}
+            virtualizer={virtualizer}
+            data={data}
+          >
             <TableTotals {...props} />
           </TableBodyWrapper>
         </Table>
@@ -156,4 +245,5 @@ TableWrapper.propTypes = {
   announce: PropTypes.func.isRequired,
   footerContainer: PropTypes.object,
   direction: PropTypes.string,
+  model: PropTypes.object.isRequired,
 };
