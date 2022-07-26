@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, memo } from 'react';
+import React, { useRef, useEffect, useMemo, memo } from 'react';
 import PropTypes from 'prop-types';
 import getCellRenderer from '../utils/get-cell-renderer';
 import { useContextSelector, TableContext } from '../context';
@@ -7,6 +7,7 @@ import { addSelectionListeners } from '../utils/selections-utils';
 import { getBodyCellStyle } from '../utils/styling-utils';
 import { bodyHandleKeyPress, bodyHandleKeyUp } from '../utils/handle-key-press';
 import { handleClickToFocusBody } from '../utils/handle-accessibility';
+import { TableCell } from '@mui/material';
 
 function TableBodyWrapper({
   rootElement,
@@ -20,6 +21,8 @@ function TableBodyWrapper({
   tableWrapperRef,
   announce,
   children,
+  items,
+  data,
 }) {
   const { rows, columns, paginationNeeded, totalsPosition } = tableData;
   const columnsStylingInfoJSON = JSON.stringify(columns.map((column) => column.stylingInfo));
@@ -44,62 +47,93 @@ function TableBodyWrapper({
     addSelectionListeners({ api: selectionsAPI, selectionDispatch, setShouldRefocus, keyboard, tableWrapperRef });
   }, []);
 
+  const dataStart = data.at(0)?.fullRowIdx ?? 0;
+
+  const dataToRenderRef = useRef([]);
+  const possibleDataToRender = items.map((item) => data[item.index - dataStart]);
+  if (possibleDataToRender.every((row) => typeof row !== 'undefined')) {
+    dataToRenderRef.current = possibleDataToRender;
+  }
+
   return (
     <StyledTableBody paginationNeeded={paginationNeeded} bodyCellStyle={bodyCellStyle}>
       {totalsPosition === 'top' ? children : undefined}
-      {rows.map((row) => (
-        <StyledBodyRow
-          bodyCellStyle={bodyCellStyle}
-          hover={hoverEffect}
-          tabIndex={-1}
-          key={row.key}
-          className="sn-table-row"
-        >
-          {columns.map((column, columnIndex) => {
-            const { id, align } = column;
-            const cell = row[id];
-            const CellRenderer = columnRenderers[columnIndex];
-            const handleKeyDown = (evt) => {
-              bodyHandleKeyPress({
-                evt,
-                rootElement,
-                selectionsAPI,
-                cell,
-                selectionDispatch,
-                isSelectionsEnabled,
-                setFocusedCellCoord,
-                announce,
-                keyboard,
-                paginationNeeded,
-                totalsPosition,
-              });
-            };
+      {dataToRenderRef.current.map((item, itemIndex) => {
+        // const row = data[item.index - dataStart];
+        const row = item;
+        const vItem = items[itemIndex];
 
-            return (
-              CellRenderer && (
-                <CellRenderer
-                  scope={columnIndex === 0 ? 'row' : null}
-                  component={columnIndex === 0 ? 'th' : null}
-                  cell={cell}
-                  column={column}
-                  key={id}
-                  align={align}
-                  styling={cellStyle}
-                  tabIndex={-1}
-                  announce={announce}
-                  onKeyDown={handleKeyDown}
-                  onKeyUp={(evt) => bodyHandleKeyUp(evt, selectionDispatch)}
-                  onMouseDown={() =>
-                    handleClickToFocusBody(cell, rootElement, setFocusedCellCoord, keyboard, totalsPosition)
-                  }
-                >
-                  {cell.qText}
-                </CellRenderer>
-              )
-            );
-          })}
-        </StyledBodyRow>
-      ))}
+        if (row) {
+          return (
+            <StyledBodyRow
+              bodyCellStyle={bodyCellStyle}
+              hover={hoverEffect}
+              tabIndex={-1}
+              // key={row.index}
+              key={row.key}
+              className="sn-table-row"
+            >
+              {columns.map((column, columnIndex) => {
+                const { id, align } = column;
+                const cell = row[id];
+                const CellRenderer = columnRenderers[columnIndex];
+                const handleKeyDown = (evt) => {
+                  bodyHandleKeyPress({
+                    evt,
+                    rootElement,
+                    selectionsAPI,
+                    cell,
+                    selectionDispatch,
+                    isSelectionsEnabled,
+                    setFocusedCellCoord,
+                    announce,
+                    keyboard,
+                    paginationNeeded,
+                    totalsPosition,
+                  });
+                };
+
+                return (
+                  CellRenderer && (
+                    <CellRenderer
+                      scope={columnIndex === 0 ? 'row' : null}
+                      component={columnIndex === 0 ? 'th' : null}
+                      cell={cell}
+                      column={column}
+                      key={id}
+                      align={align}
+                      styling={cellStyle}
+                      tabIndex={-1}
+                      announce={announce}
+                      onKeyDown={handleKeyDown}
+                      onKeyUp={(evt) => bodyHandleKeyUp(evt, selectionDispatch)}
+                      onMouseDown={() =>
+                        handleClickToFocusBody(cell, rootElement, setFocusedCellCoord, keyboard, totalsPosition)
+                      }
+                    >
+                      {cell.qText}
+                    </CellRenderer>
+                  )
+                );
+              })}
+              <TableCell
+                sx={{
+                  height: 32,
+                  paddingBlock: 0,
+                  boxSizing: 'border-box',
+                }}
+              >
+                {row.key}
+              </TableCell>
+            </StyledBodyRow>
+          );
+        }
+        return (
+          <tr key={vItem.index}>
+            <td style={{ height: '64px', boxSizing: 'border-box' }}>placeholder {vItem.index}</td>
+          </tr>
+        );
+      })}
       {totalsPosition === 'bottom' ? children : undefined}
     </StyledTableBody>
   );
@@ -117,6 +151,8 @@ TableBodyWrapper.propTypes = {
   tableWrapperRef: PropTypes.object.isRequired,
   announce: PropTypes.func.isRequired,
   children: PropTypes.object.isRequired,
+  items: PropTypes.object.isRequired,
+  data: PropTypes.object.isRequired,
 };
 
 export default memo(TableBodyWrapper);

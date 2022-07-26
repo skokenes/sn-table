@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Table from '@mui/material/Table';
 
 import AnnounceElements from './AnnounceElements';
@@ -17,6 +17,7 @@ import useScrollListener from '../hooks/use-scroll-listener';
 import { handleTableWrapperKeyDown } from '../utils/handle-key-press';
 import { updateFocus, handleResetFocus, getCellElement } from '../utils/handle-accessibility';
 import { handleNavigateTop } from '../utils/handle-scroll';
+import useVirtualizer from '../hooks/use-virtualizer';
 
 export default function TableWrapper(props) {
   const {
@@ -32,6 +33,7 @@ export default function TableWrapper(props) {
     direction,
     footerContainer,
     announce,
+    model,
   } = props;
   const { totalColumnCount, totalRowCount, totalPages, paginationNeeded, rows, columns } = tableData;
   const { page, rowsPerPage } = pageInfo;
@@ -105,6 +107,89 @@ export default function TableWrapper(props) {
     columns.length,
   ])} ${translator.get('SNTable.Accessibility.NavigationInstructions')}`;
 
+  /**
+   * TODO
+   * - refetch data when layout changes
+   * - doesn't seem to work when there are only a few rows (ie doesn't need scroll)
+   */
+  const FIXED_HEADER_HEIGHT = 0;
+  const v = useVirtualizer({
+    rowCt: totalRowCount,
+    rowHeight: 32,
+    parentRef: tableContainerRef,
+  });
+
+  const items = v.getItemsInView();
+
+  const itemStart = items.at(0)?.index ?? 0;
+  const itemEnd = items.at(-1)?.index ?? itemStart + 1;
+
+  const FETCH_SIZE = 100;
+  const [fetchingRange, setFetchingRange] = useState([0, 0]);
+
+  const fetchStart = fetchingRange[0];
+  const fetchEnd = fetchingRange[1];
+  const isItemStartInRange = itemStart >= fetchStart && itemStart <= fetchEnd;
+  const isItemEndInRange = itemEnd >= fetchStart && itemEnd <= fetchEnd;
+  const isFetchingCorrectRange = isItemStartInRange && isItemEndInRange;
+
+  let newFetchRange = fetchingRange;
+  if (!isFetchingCorrectRange) {
+    // determine new fetch range
+    // set new fetch range
+    const itemRange = itemEnd - itemStart;
+    const localFetchSize = Math.max(FETCH_SIZE, itemRange);
+    const buffer = localFetchSize - itemRange;
+    const bufferPerSide = Math.floor(buffer / 2);
+    // const hasEnoughBufferO
+    // TODO: work out how to handle the scenario of starting row buffer and ending row buffer offsets
+    const bufferStartPos = Math.max(itemStart - bufferPerSide, 0);
+    const bufferStartSize = itemStart - bufferStartPos;
+    const bufferEndSize = buffer - bufferStartSize;
+    const bufferEndPos = itemEnd + bufferEndSize;
+    newFetchRange = [bufferStartPos, bufferStartPos + localFetchSize];
+  }
+
+  const [nextFetchStart, nextFetchEnd] = newFetchRange;
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setFetchingRange([nextFetchStart, nextFetchEnd]);
+
+    model
+      .getHyperCubeData('/qHyperCubeDef', [
+        { qTop: nextFetchStart, qLeft: 0, qHeight: nextFetchEnd - nextFetchStart, qWidth: totalColumnCount },
+      ])
+      .then((dataPages) => {
+        if (!cancelled) {
+          const newRows = dataPages[0].qMatrix.map((r, rowIdx) => {
+            const fullRowIdx = rowIdx + nextFetchStart;
+            const row = { key: `row-${fullRowIdx}`, fullRowIdx };
+            columns.forEach((c, colIdx) => {
+              row[c.id] = {
+                ...r[colIdx],
+                rowIdx: fullRowIdx,
+                colIdx, // columnOrder[colIdx],
+                isSelectable: c.isDim && !c.isLocked,
+                rawRowIdx: rowIdx,
+                rawColIdx: colIdx,
+                prevQElemNumber: dataPages[0].qMatrix[rowIdx - 1]?.[colIdx]?.qElemNumber,
+                nextQElemNumber: dataPages[0].qMatrix[rowIdx + 1]?.[colIdx]?.qElemNumber,
+              };
+            });
+            return row;
+          });
+          setData(newRows);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [nextFetchStart, nextFetchEnd, totalColumnCount]);
+
   return (
     <StyledTableWrapper
       ref={tableWrapperRef}
@@ -122,12 +207,27 @@ export default function TableWrapper(props) {
         role="application"
         data-testid="table-container"
       >
-        <Table stickyHeader aria-label={tableAriaLabel}>
+        <Table
+          stickyHeader
+          aria-label={tableAriaLabel}
+          sx={{
+            width: '100%',
+            position: 'sticky',
+            top: 0,
+          }}
+        >
           <TableHeadWrapper {...props} />
-          <TableBodyWrapper {...props} setShouldRefocus={setShouldRefocus} tableWrapperRef={tableWrapperRef}>
+          <TableBodyWrapper
+            {...props}
+            setShouldRefocus={setShouldRefocus}
+            tableWrapperRef={tableWrapperRef}
+            items={v.getItemsInView()}
+            data={data}
+          >
             <TableTotals {...props} />
           </TableBodyWrapper>
         </Table>
+        <div style={{ height: v.totalHeight - FIXED_HEADER_HEIGHT - v.virtualItemsHeight }}></div>
       </StyledTableContainer>
       {!constraints.active && (
         <FooterWrapper theme={theme} footerContainer={footerContainer}>
@@ -156,4 +256,5 @@ TableWrapper.propTypes = {
   announce: PropTypes.func.isRequired,
   footerContainer: PropTypes.object,
   direction: PropTypes.string,
+  model: PropTypes.object.isRequired,
 };
