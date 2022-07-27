@@ -53,18 +53,49 @@ export default function useVirtualizer({ rowCt, rowHeight, parentRef, paddingTop
 
       // eslint-disable-next-line no-inner-declarations
       function updateScroll(evt, ratio = 1) {
+        // maybe some options for whether we want to change focus or not? so we can control whether mouse should do that or just keys
         const stepSize = (Math.round((rowHeightRef.current / virtualRatioRef.current) * 100) / 100) * ratio;
         const currentFractionalSize = fractionalScrollPosRef.current;
         const prevScrollTop = node.scrollTop;
         const nextSize = clampSize(Math.round((currentFractionalSize + stepSize) * 100) / 100);
 
+        const currentFocus = document.activeElement;
+
+        /**
+         * some other options here...
+         * - if focused element is going out of DOM, move focus to the table container?
+         *    - how would this affect accessibility?
+         */
+
+        if (ratio === 1) {
+          // If the target is a row or inside of a row, move the focus down one?
+          // Maybe only if it is about to go off screen, although thats not detectable from here yet
+          if (currentFocus.classList.contains('sn-table-row')) {
+            const maybeNextRow = currentFocus.nextSibling;
+            if (maybeNextRow) maybeNextRow.focus();
+          }
+        } else if (ratio === -1) {
+          if (currentFocus.classList.contains('sn-table-row')) {
+            const maybePrevRow = currentFocus.previousSibling;
+            if (maybePrevRow) maybePrevRow.focus();
+          }
+        }
+
         node.scrollTop = nextSize;
         setFractionalScrollPos(nextSize);
         setScrollPos(node.scrollTop);
+
         if (node.scrollTop !== prevScrollTop) {
           ignoreScrollEvent = true;
         }
       }
+
+      window.addEventListener('keydown', (evt) => {
+        // Ignore scroll event if the target is not inside the container ref?
+        if (evt.key === 'ArrowDown') {
+          // evt.preventDefault();
+        }
+      });
 
       const keydownListener = (evt) => {
         if (evt.key === 'ArrowDown') {

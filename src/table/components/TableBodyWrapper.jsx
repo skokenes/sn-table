@@ -72,50 +72,59 @@ function TableBodyWrapper({
               // key={row.index}
               key={row.key}
               className="sn-table-row"
+              sx={{
+                '&:focus-within': {
+                  outline: '2px solid blue',
+                },
+                '&:focus': {
+                  outline: '2px solid red',
+                },
+              }}
             >
-              {columns.map((column, columnIndex) => {
-                const { id, align } = column;
-                const cell = row[id];
-                const CellRenderer = columnRenderers[columnIndex];
-                const handleKeyDown = (evt) => {
-                  bodyHandleKeyPress({
-                    evt,
-                    rootElement,
-                    selectionsAPI,
-                    cell,
-                    selectionDispatch,
-                    isSelectionsEnabled,
-                    setFocusedCellCoord,
-                    announce,
-                    keyboard,
-                    paginationNeeded,
-                    totalsPosition,
-                  });
-                };
+              {false &&
+                columns.map((column, columnIndex) => {
+                  const { id, align } = column;
+                  const cell = row[id];
+                  const CellRenderer = columnRenderers[columnIndex];
+                  const handleKeyDown = (evt) => {
+                    bodyHandleKeyPress({
+                      evt,
+                      rootElement,
+                      selectionsAPI,
+                      cell,
+                      selectionDispatch,
+                      isSelectionsEnabled,
+                      setFocusedCellCoord,
+                      announce,
+                      keyboard,
+                      paginationNeeded,
+                      totalsPosition,
+                    });
+                  };
 
-                return (
-                  CellRenderer && (
-                    <CellRenderer
-                      scope={columnIndex === 0 ? 'row' : null}
-                      component={columnIndex === 0 ? 'th' : null}
-                      cell={cell}
-                      column={column}
-                      key={id}
-                      align={align}
-                      styling={cellStyle}
-                      tabIndex={-1}
-                      announce={announce}
-                      onKeyDown={handleKeyDown}
-                      onKeyUp={(evt) => bodyHandleKeyUp(evt, selectionDispatch)}
-                      onMouseDown={() =>
-                        handleClickToFocusBody(cell, rootElement, setFocusedCellCoord, keyboard, totalsPosition)
-                      }
-                    >
-                      {cell.qText}
-                    </CellRenderer>
-                  )
-                );
-              })}
+                  return (
+                    CellRenderer && (
+                      <CellRenderer
+                        scope={columnIndex === 0 ? 'row' : null}
+                        component={columnIndex === 0 ? 'th' : null}
+                        cell={cell}
+                        column={column}
+                        key={id}
+                        align={align}
+                        styling={cellStyle}
+                        tabIndex={-1}
+                        announce={announce}
+                        onKeyDown={handleKeyDown}
+                        onKeyUp={(evt) => bodyHandleKeyUp(evt, selectionDispatch)}
+                        onMouseDown={() =>
+                          handleClickToFocusBody(cell, rootElement, setFocusedCellCoord, keyboard, totalsPosition)
+                        }
+                      >
+                        {cell.qText}
+                      </CellRenderer>
+                    )
+                  );
+                })}
               <TableCell
                 sx={{
                   height: 32,

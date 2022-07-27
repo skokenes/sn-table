@@ -110,7 +110,9 @@ export default function TableWrapper(props) {
   /**
    * TODO
    * - refetch data when layout changes
-   * - doesn't seem to work when there are only a few rows (ie doesn't need scroll)
+   * - 20M row ex: dragging scrollbar to the end doesnt quite work. mousewheel works
+   * - 20M row ex: arrow down/up not going row by row: issue with losing focus
+   * - 20M row ex: keydown on first row moving 2 rows down
    */
   const FIXED_HEADER_HEIGHT = 0;
   const v = useVirtualizer({
