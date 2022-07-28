@@ -1,7 +1,18 @@
-export const getCellElement = (rootElement, cellCoord) =>
-  rootElement.getElementsByClassName('sn-table-row')[cellCoord[0]]?.getElementsByClassName('sn-table-cell')[
+export const getCellElement = (rootElement, cellCoord) => {
+  // TODO: work with paging, figure out strategy for header rows
+  const headerSize = 2;
+  // console.log(cellCoord);
+  const rowCoord = cellCoord[0];
+  if (rowCoord < headerSize)
+    return rootElement.getElementsByClassName('sn-table-row')[cellCoord[0]]?.getElementsByClassName('sn-table-cell')[
+      cellCoord[1]
+    ];
+
+  const dataRowIdx = rowCoord - headerSize;
+  return rootElement.querySelector(`[data-row-index="${dataRowIdx}"]`)?.getElementsByClassName('sn-table-cell')[
     cellCoord[1]
   ];
+};
 
 export const findCellWithTabStop = (rootElement) => rootElement.querySelector("td[tabindex='0'], th[tabindex='0']");
 
@@ -10,7 +21,8 @@ export const updateFocus = ({ focusType, cell }) => {
 
   switch (focusType) {
     case 'focus':
-      cell.focus();
+      // TODO: preventScroll should only be true for inf scroll, not paging
+      cell.focus({ preventScroll: true });
       cell.setAttribute('tabIndex', '0');
       break;
     case 'blur':

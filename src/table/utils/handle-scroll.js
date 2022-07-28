@@ -1,3 +1,5 @@
+import { getCellElement } from './handle-accessibility';
+
 export const handleHorizontalScroll = (evt, isRTL, memoedContainer) => {
   if (evt.deltaX === 0) return;
 
@@ -40,14 +42,17 @@ export const handleNavigateTop = ({ tableContainerRef, focusedCellCoord, rootEle
     const [x, y] = focusedCellCoord;
     const tableHead = rootElement.getElementsByClassName('sn-table-head-cell')[0];
     const rowElements = rootElement.getElementsByClassName('sn-table-row');
-    const cell = rowElements[x]?.getElementsByClassName('sn-table-cell')[y];
+    // TODO: overriding paging behavior here
+    const cell = getCellElement(rootElement, focusedCellCoord); // rowElements[x]?.getElementsByClassName('sn-table-cell')[y];
 
-    if (cell.offsetTop - tableHead.offsetHeight - cell.offsetHeight <= tableContainerRef.current.scrollTop) {
-      const targetOffsetTop = tableContainerRef.current.scrollTop - cell.offsetHeight - tableHead.offsetHeight;
-      tableContainerRef.current.scrollTo({
-        top: Math.max(0, targetOffsetTop),
-        behavior: 'smooth',
-      });
-    }
+    // if (cell.offsetTop - tableHead.offsetHeight - cell.offsetHeight <= tableContainerRef.current.scrollTop) {
+    //   const targetOffsetTop = tableContainerRef.current.scrollTop - cell.offsetHeight - tableHead.offsetHeight;
+
+    //   // TODO: keep this working for paging mode, but we don't want this for inf scroll mode right?
+    //   // tableContainerRef.current.scrollTo({
+    //   //   top: Math.max(0, targetOffsetTop),
+    //   //   behavior: 'smooth',
+    //   // });
+    // }
   }
 };

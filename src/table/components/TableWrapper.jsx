@@ -119,6 +119,7 @@ export default function TableWrapper(props) {
     rowCt: totalRowCount,
     rowHeight: 32,
     parentRef: tableContainerRef,
+    focusedCellCoord,
   });
 
   const items = v.getItemsInView();

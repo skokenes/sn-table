@@ -55,6 +55,8 @@ function TableBodyWrapper({
     dataToRenderRef.current = possibleDataToRender;
   }
 
+  const focusedCellCoord = useContextSelector(TableContext, (value) => value.focusedCellCoord);
+
   return (
     <StyledTableBody paginationNeeded={paginationNeeded} bodyCellStyle={bodyCellStyle}>
       {totalsPosition === 'top' ? children : undefined}
@@ -80,52 +82,56 @@ function TableBodyWrapper({
                   outline: '2px solid red',
                 },
               }}
+              data-row-index={row.fullRowIdx}
+              data-test={row.fullRowIdx + 2}
+              data-test2={focusedCellCoord[0]}
+              autoFocus={row.fullRowIdx + 2 === focusedCellCoord[0]}
             >
-              {false &&
-                columns.map((column, columnIndex) => {
-                  const { id, align } = column;
-                  const cell = row[id];
-                  const CellRenderer = columnRenderers[columnIndex];
-                  const handleKeyDown = (evt) => {
-                    bodyHandleKeyPress({
-                      evt,
-                      rootElement,
-                      selectionsAPI,
-                      cell,
-                      selectionDispatch,
-                      isSelectionsEnabled,
-                      setFocusedCellCoord,
-                      announce,
-                      keyboard,
-                      paginationNeeded,
-                      totalsPosition,
-                    });
-                  };
+              {columns.map((column, columnIndex) => {
+                const { id, align } = column;
+                const cell = row[id];
+                const CellRenderer = columnRenderers[columnIndex];
+                const handleKeyDown = (evt) => {
+                  bodyHandleKeyPress({
+                    evt,
+                    rootElement,
+                    selectionsAPI,
+                    cell,
+                    selectionDispatch,
+                    isSelectionsEnabled,
+                    setFocusedCellCoord,
+                    announce,
+                    keyboard,
+                    paginationNeeded,
+                    totalsPosition,
+                  });
+                };
 
-                  return (
-                    CellRenderer && (
-                      <CellRenderer
-                        scope={columnIndex === 0 ? 'row' : null}
-                        component={columnIndex === 0 ? 'th' : null}
-                        cell={cell}
-                        column={column}
-                        key={id}
-                        align={align}
-                        styling={cellStyle}
-                        tabIndex={-1}
-                        announce={announce}
-                        onKeyDown={handleKeyDown}
-                        onKeyUp={(evt) => bodyHandleKeyUp(evt, selectionDispatch)}
-                        onMouseDown={() =>
-                          handleClickToFocusBody(cell, rootElement, setFocusedCellCoord, keyboard, totalsPosition)
-                        }
-                      >
-                        {cell.qText}
-                      </CellRenderer>
-                    )
-                  );
-                })}
+                return (
+                  CellRenderer && (
+                    <CellRenderer
+                      scope={columnIndex === 0 ? 'row' : null}
+                      component={columnIndex === 0 ? 'th' : null}
+                      cell={cell}
+                      column={column}
+                      key={id}
+                      align={align}
+                      styling={cellStyle}
+                      tabIndex={-1}
+                      announce={announce}
+                      onKeyDown={handleKeyDown}
+                      onKeyUp={(evt) => bodyHandleKeyUp(evt, selectionDispatch)}
+                      onMouseDown={() =>
+                        handleClickToFocusBody(cell, rootElement, setFocusedCellCoord, keyboard, totalsPosition)
+                      }
+                    >
+                      {cell.qText}
+                    </CellRenderer>
+                  )
+                );
+              })}
               <TableCell
+                className="sn-table-cell"
                 sx={{
                   height: 32,
                   paddingBlock: 0,

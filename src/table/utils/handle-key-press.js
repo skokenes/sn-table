@@ -85,9 +85,12 @@ export const getRowAndColumnCount = (rootElement) => {
 export const moveFocus = (evt, rootElement, cellCoord, setFocusedCellCoord, topAllowedRow) => {
   preventDefaultBehavior(evt);
   evt.target.setAttribute('tabIndex', '-1');
-  const rowAndColumnCount = getRowAndColumnCount(rootElement);
+  // TODO: this once again is breaking the paging way of doing things. Probably just need separate moveFocus, etc functions
+  const rowAndColumnCount = { rowCount: 783, columnCount: 3 }; // getRowAndColumnCount(rootElement);
   const nextCellCoord = arrowKeysNavigation(evt, rowAndColumnCount, cellCoord, topAllowedRow);
   const nextCell = getCellElement(rootElement, nextCellCoord);
+  // TODO: this is going to the wrong cell. getCellElement probably needs to be rejiggered to work with these disappearing rows.
+  // perhaps the rows can have their true index as a data attribute. Will have to figure out how that works with header being 0 and 1 index
   updateFocus({ focusType: 'focus', cell: nextCell });
   setFocusedCellCoord(nextCellCoord);
 
